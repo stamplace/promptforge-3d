@@ -75,14 +75,14 @@ function vibrate(ms = 18) {
 }
 
 function showCenter(title, sub = "", kicker = "PromptForge 3D") {
-  centerTitle.textContent = title;
+  if (!centerCard || !centerTitle || !centerSub) return;\n  centerTitle.textContent = title;
   centerSub.textContent = sub;
   centerCard.querySelector(".center-kicker").textContent = kicker;
   centerCard.classList.add("show");
 }
 
 function hideCenter() {
-  centerCard.classList.remove("show");
+  if (centerCard) centerCard.classList.remove("show");
 }
 
 function finishGame(title, sub) {
@@ -177,7 +177,7 @@ function setupScene(data) {
 }
 
 function spawnObject(now) {
-  if (!spec || now - lastSpawn < Math.max(360, spec.tuning.spawnEveryMs / speedBoost) return;
+  if (!spec || now - lastSpawn < Math.max(360, spec.tuning.spawnEveryMs / speedBoost)) return;
   lastSpawn = now;
 
   const isDanger = Math.random() < spec.tuning.obstacleChance;
