@@ -75,7 +75,8 @@ function vibrate(ms = 18) {
 }
 
 function showCenter(title, sub = "", kicker = "PromptForge 3D") {
-  if (!centerCard || !centerTitle || !centerSub) return;\n  centerTitle.textContent = title;
+  if (!centerCard || !centerTitle || !centerSub) return;
+  centerTitle.textContent = title;
   centerSub.textContent = sub;
   centerCard.querySelector(".center-kicker").textContent = kicker;
   centerCard.classList.add("show");
