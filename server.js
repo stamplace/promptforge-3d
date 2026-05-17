@@ -12,35 +12,61 @@ function sendJson(res, data) {
   res.end(JSON.stringify(data, null, 2));
 }
 
+function hasAny(text, words) {
+  return words.some(w => text.includes(w));
+}
+
 function gameFromPrompt(prompt) {
   const text = String(prompt || "").trim();
   const p = text.toLowerCase();
 
-  const isSpace = /space|planet|star|galaxy|חלל|כוכב|גלקס/.test(p);
-  const isFast = /fast|runner|race|speed|מהיר|רץ|מירוץ/.test(p);
-  const isMagic = /magic|dragon|castle|forest|קסם|דרקון|יער|טירה/.test(p);
-  const isDark = /dark|night|neon|shadow|לילה|ניאון|צל/.test(p);
+  const dna = {
+    space: hasAny(p, ["space", "planet", "star", "galaxy", "חלל", "כוכב", "גלקס", "ירח"]),
+    fast: hasAny(p, ["fast", "runner", "race", "speed", "מהיר", "רץ", "מירוץ", "טיל"]),
+    magic: hasAny(p, ["magic", "dragon", "castle", "forest", "קסם", "דרקון", "יער", "טירה"]),
+    dark: hasAny(p, ["dark", "night", "neon", "shadow", "לילה", "ניאון", "צל", "סגול"]),
+    maze: hasAny(p, ["maze", "walls", "מבוך", "קירות", "מסדרון"]),
+    battle: hasAny(p, ["battle", "fight", "enemy", "war", "קרב", "אויב", "מלחמה", "יריות"])
+  };
+
+  const genre = dna.maze ? "מבוך חי" : dna.battle ? "ארנת קרב" : dna.fast ? "ראנר מהיר" : "איסוף והרפתקה";
+  const world = dna.space ? "זירת חלל ניאונית" : dna.magic ? "יער קסום מרחף" : dna.dark ? "ארנת לילה חשמלית" : "עולם צעצוע נקי";
+  const player = dna.fast ? "שחקן ירוק מהיר" : dna.battle ? "גיבור ירוק בזירה" : "גיבור ירוק ממוקד";
+  const danger = dna.battle ? "אויבים סגולים זזים" : dna.maze ? "קירות ומכשולים סגולים" : "מכשולים סגולים";
+  const goal = dna.battle ? "אסוף אנרגיה, התחמק מאויבים, והפעל את השער" : "אסוף את כל האנרגיות והגע לשער";
+  const mood = dna.dark || dna.space ? "ניאון חד, חשמלי וקולנועי" : dna.magic ? "קסום, עמוק ורך" : "נקי, שמח ומיידי";
 
   return {
-    title: "Your Game Is Alive",
+    title: "המשחק שלך נפתח",
     prompt: text,
-    world: isSpace ? "Neon Space Arena" : isMagic ? "Floating Myth Forest" : "Clean Toy Reality",
-    player: isFast ? "Fast green cube" : "Focused green hero",
-    goal: "Collect all shards and reach the portal",
-    danger: isDark ? "Purple shadow blockers" : "Moving blockers",
-    mood: isDark ? "electric and cinematic" : "clean and playful",
-    speed: isFast ? 0.18 : 0.11,
+    genre,
+    world,
+    player,
+    goal,
+    danger,
+    mood,
+    speed: dna.fast ? 0.2 : dna.maze ? 0.095 : 0.125,
+    camera: dna.fast ? "runner" : dna.maze ? "maze" : "arena",
     colors: {
-      background: isDark || isSpace ? "#05060a" : "#f8fafc",
+      background: dna.dark || dna.space ? "#05060a" : "#f8fafc",
       player: "#22ff99",
-      danger: "#7c3cff",
+      danger: dna.dark ? "#7c3cff" : "#5b21b6",
       goal: "#ffffff",
-      floor: isDark || isSpace ? "#111827" : "#e5e7eb"
+      floor: dna.dark || dna.space ? "#0b1220" : "#e5e7eb",
+      accent: dna.magic ? "#a7f3d0" : "#22ff99"
     },
     counts: {
-      shards: isMagic ? 12 : 8,
-      blockers: isDark ? 9 : 6
-    }
+      shards: dna.magic ? 12 : dna.fast ? 10 : 8,
+      blockers: dna.battle ? 12 : dna.maze ? 14 : dna.dark ? 9 : 6
+    },
+    atoms: [
+      `סוג: ${genre}`,
+      `עולם: ${world}`,
+      `שחקן: ${player}`,
+      `מטרה: ${goal}`,
+      `סכנה: ${danger}`,
+      `אווירה: ${mood}`
+    ]
   };
 }
 
@@ -49,8 +75,12 @@ const server = http.createServer((req, res) => {
     let body = "";
     req.on("data", chunk => body += chunk);
     req.on("end", () => {
-      const data = JSON.parse(body || "{}");
-      sendJson(res, gameFromPrompt(data.prompt));
+      try {
+        const data = JSON.parse(body || "{}");
+        sendJson(res, gameFromPrompt(data.prompt));
+      } catch {
+        sendJson(res, gameFromPrompt(""));
+      }
     });
     return;
   }
