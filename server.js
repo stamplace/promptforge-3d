@@ -143,8 +143,7 @@ function pickIntent(p) {
     fast: hasAny(p, ["fast", "speed", "race", "runner", "turbo", "מהיר", "מירוץ", "רץ", "טיל", "טורבו"]),
     calm: hasAny(p, ["calm", "slow", "soft", "רגוע", "איטי", "רך"]),
     hard: hasAny(p, ["hard", "danger", "crazy", "קשה", "מסוכן", "משוגע"]),
-    premium: hasAny(p, ["premium", "luxury", "cinematic", "יוקרתי", "קולנועי", "פרימיום"]),
-    funny: hasAny(p, ["funny", "silly", "מצחיק", "שטות", "משוגע"])
+    premium: hasAny(p, ["premium", "luxury", "cinematic", "יוקרתי", "קולנועי", "פרימיום"])
   };
 }
 
@@ -192,7 +191,7 @@ function mobileGameFromPrompt(prompt) {
       `עולם: ${world.world}`,
       `פרסום: ${world.tagline}`,
       `קצב: ${intent.fast ? "מהיר" : intent.calm ? "רגוע" : "מאוזן"}`,
-      `רמת קושי: ${intent.hard ? "גבוהה" : intent.calm ? "קלה" : "רגילה"}`
+      `קושי: ${intent.hard ? "גבוה" : intent.calm ? "קל" : "רגיל"}`
     ]
   };
 }

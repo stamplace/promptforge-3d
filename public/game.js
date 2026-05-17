@@ -174,6 +174,8 @@ function setupScene(data) {
 
   if (gameNameEl) gameNameEl.textContent = data.title || "PromptForge 3D";
   if (taglineEl) taglineEl.textContent = data.tagline || data.adLine || "כתוב משחק. שחק בו עכשיו.";
+  if (gameNameEl) gameNameEl.textContent = data.title || "PromptForge 3D";
+  if (taglineEl) taglineEl.textContent = data.tagline || data.adLine || "כתוב משחק. שחק בו עכשיו.";
   renderDna(data);
   hud(data.world);
   hintEl.textContent = "המשחק נפתח...";
