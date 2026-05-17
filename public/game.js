@@ -10,10 +10,12 @@ const titleEl = document.querySelector("#title");
 let scene, camera, renderer, player, portal, rafId;
 let shards = [];
 let blockers = [];
+let bullets = [];
 let keys = {};
 let score = 0;
+let lives = 3;
 let activeSpec = null;
-let startMs = Date.now();
+let lastShotAt = 0;
 
 function makeBox(color, size = [1, 1, 1]) {
   return new THREE.Mesh(
@@ -29,6 +31,13 @@ function makeShard(color) {
   );
 }
 
+function makeBullet(color) {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 16, 16),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1 })
+  );
+}
+
 function clearStage() {
   if (rafId) cancelAnimationFrame(rafId);
   const old = stage.querySelector("canvas");
@@ -40,6 +49,13 @@ function renderDna(spec) {
   dnaEl.innerHTML = spec.atoms.map(atom => (
     `<div class="atom"><span class="dot"></span><span>${atom}</span></div>`
   )).join("");
+}
+
+function setHud(message = null) {
+  const total = activeSpec?.counts?.shards || 0;
+  const lifeText = activeSpec?.gameMode === "battle" ? ` · חיים ${lives}` : "";
+  scoreEl.textContent = `${score} / ${total}${lifeText}`;
+  if (message) titleEl.textContent = message;
 }
 
 function addSceneRails(spec) {
@@ -57,11 +73,13 @@ function addSceneRails(spec) {
     for (let z = -7; z <= 6; z += 2) {
       const left = makeBox(spec.colors.danger, [0.32, 1.2, 1.4]);
       left.position.set(-4 + Math.sin(z) * 1.2, 0.55, z);
+      left.userData.wall = true;
       scene.add(left);
       blockers.push(left);
 
       const right = makeBox(spec.colors.danger, [0.32, 1.2, 1.4]);
       right.position.set(4 + Math.cos(z) * 1.2, 0.55, z);
+      right.userData.wall = true;
       scene.add(right);
       blockers.push(right);
     }
@@ -70,7 +88,11 @@ function addSceneRails(spec) {
   if (spec.gameMode === "battle") {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(5.6, 0.05, 12, 96),
-      new THREE.MeshStandardMaterial({ color: spec.colors.danger, emissive: spec.colors.danger, emissiveIntensity: 0.35 })
+      new THREE.MeshStandardMaterial({
+        color: spec.colors.danger,
+        emissive: spec.colors.danger,
+        emissiveIntensity: 0.35
+      })
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 0.04;
@@ -111,6 +133,7 @@ function placeBlockers(spec) {
     } else if (spec.gameMode === "battle") {
       const a = (i / spec.counts.blockers) * Math.PI * 2;
       blocker.position.set(Math.cos(a) * 5.2, 0.5, Math.sin(a) * 5.2);
+      blocker.userData.enemy = true;
     } else {
       blocker.position.set((Math.random() - 0.5) * 11, 0.5, (Math.random() - 0.5) * 12);
     }
@@ -123,10 +146,12 @@ function placeBlockers(spec) {
 
 function initGame(spec) {
   activeSpec = spec;
-  startMs = Date.now();
   score = 0;
+  lives = 3;
   shards = [];
   blockers = [];
+  bullets = [];
+  lastShotAt = 0;
   clearStage();
 
   scene = new THREE.Scene();
@@ -166,13 +191,18 @@ function initGame(spec) {
 
   portal = new THREE.Mesh(
     new THREE.TorusGeometry(0.85, 0.08, 16, 64),
-    new THREE.MeshStandardMaterial({ color: spec.colors.goal, emissive: spec.colors.goal, emissiveIntensity: 0.9 })
+    new THREE.MeshStandardMaterial({
+      color: spec.colors.goal,
+      emissive: spec.colors.goal,
+      emissiveIntensity: 0.9
+    })
   );
   portal.position.set(0, 1, -7.4);
   scene.add(portal);
 
   titleEl.textContent = spec.world;
   renderDna(spec);
+  setHud(spec.gameMode === "battle" ? "קרב פעיל — לחץ אש" : spec.world);
   animate();
 }
 
@@ -182,16 +212,45 @@ function move(dx, dz) {
   player.position.z = Math.max(-8, Math.min(7.2, player.position.z + dz));
 }
 
+function fireBullet() {
+  if (!activeSpec || activeSpec.gameMode !== "battle" || !player) return;
+
+  const now = Date.now();
+  if (now - lastShotAt < 260) return;
+  lastShotAt = now;
+
+  const bullet = makeBullet(activeSpec.colors.player);
+  bullet.position.set(player.position.x, 0.55, player.position.z - 0.65);
+  bullet.userData.vz = -0.34;
+  bullets.push(bullet);
+  scene.add(bullet);
+  setHud("אש!");
+}
+
 function updateControls() {
   const v = activeSpec.speed;
   if (keys.ArrowLeft) move(-v, 0);
   if (keys.ArrowRight) move(v, 0);
   if (keys.ArrowUp) move(0, -v);
   if (keys.ArrowDown) move(0, v);
+  if (keys.Space || keys.Fire) fireBullet();
 
   if (activeSpec.gameMode === "runner") {
     move(0, -v * 0.34);
     if (player.position.z < -7.2) player.position.z = 6.8;
+  }
+}
+
+function damagePlayer() {
+  lives -= 1;
+  player.position.set(0, 0.45, 6.8);
+
+  if (lives <= 0) {
+    lives = 3;
+    score = 0;
+    setHud("נפלת — המשחק התחיל מחדש");
+  } else {
+    setHud(`נפגעת — נשארו ${lives} חיים`);
   }
 }
 
@@ -200,7 +259,7 @@ function updateBlockers(t) {
     b.rotation.y += 0.024;
     b.rotation.x += activeSpec.gameMode === "battle" ? 0.018 : 0.006;
 
-    if (activeSpec.gameMode === "battle") {
+    if (activeSpec.gameMode === "battle" && b.userData.enemy) {
       const dx = player.position.x - b.position.x;
       const dz = player.position.z - b.position.z;
       const len = Math.max(0.001, Math.hypot(dx, dz));
@@ -214,9 +273,36 @@ function updateBlockers(t) {
     }
 
     if (b.position.distanceTo(player.position) < 0.82) {
-      player.position.set(0, 0.45, 6.8);
-      titleEl.textContent = "נפגעת — המשחק נבנה מחדש";
+      damagePlayer();
     }
+  });
+}
+
+function updateBullets() {
+  if (activeSpec.gameMode !== "battle") return;
+
+  bullets = bullets.filter(bullet => {
+    bullet.position.z += bullet.userData.vz;
+    bullet.rotation.y += 0.08;
+
+    for (const enemy of [...blockers]) {
+      if (!enemy.userData.enemy) continue;
+      if (enemy.position.distanceTo(bullet.position) < 0.78) {
+        scene.remove(enemy);
+        scene.remove(bullet);
+        blockers = blockers.filter(x => x !== enemy);
+        score += 1;
+        setHud("פגיעה!");
+        return false;
+      }
+    }
+
+    if (bullet.position.z < -8.5) {
+      scene.remove(bullet);
+      return false;
+    }
+
+    return true;
   });
 }
 
@@ -238,6 +324,17 @@ function updateShards(t) {
   });
 }
 
+function checkWin() {
+  if (activeSpec.gameMode === "battle" && blockers.filter(b => b.userData.enemy).length === 0) {
+    titleEl.textContent = "ניצחת בקרב — כתוב משחק חדש";
+    return;
+  }
+
+  if (portal.position.distanceTo(player.position) < 1.1 && shards.length === 0) {
+    titleEl.textContent = "ניצחת — כתוב משחק חדש";
+  }
+}
+
 function animate() {
   rafId = requestAnimationFrame(animate);
   if (!activeSpec || !renderer) return;
@@ -245,13 +342,11 @@ function animate() {
   const t = Date.now();
   updateControls();
   updateBlockers(t);
+  updateBullets();
   updateShards(t);
+  checkWin();
 
-  if (portal.position.distanceTo(player.position) < 1.1 && shards.length === 0) {
-    titleEl.textContent = "ניצחת — כתוב משחק חדש";
-  }
-
-  scoreEl.textContent = `${score} / ${activeSpec.counts.shards}`;
+  setHud();
   portal.rotation.z += 0.025;
   player.rotation.y += 0.02;
 
@@ -279,11 +374,12 @@ async function forge() {
 
 forgeEl.onclick = forge;
 
-addEventListener("keydown", e => keys[e.key] = true);
-addEventListener("keyup", e => keys[e.key] = false);
+addEventListener("keydown", e => keys[e.code || e.key] = true);
+addEventListener("keyup", e => keys[e.code || e.key] = false);
 
 function bindHold(id, key) {
   const el = document.querySelector("#" + id);
+  if (!el) return;
   const on = e => { e.preventDefault(); keys[key] = true; };
   const off = e => { e.preventDefault(); keys[key] = false; };
   el.addEventListener("touchstart", on, { passive: false });
@@ -297,6 +393,7 @@ function bindHold(id, key) {
 bindHold("left", "ArrowLeft");
 bindHold("right", "ArrowRight");
 bindHold("up", "ArrowUp");
+bindHold("fire", "Fire");
 
 window.addEventListener("resize", () => {
   if (!camera || !renderer) return;

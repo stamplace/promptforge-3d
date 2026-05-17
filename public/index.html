@@ -27,9 +27,10 @@
     .hud{position:absolute;inset:12px;pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
     .badge{background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:8px 12px;font-size:13px;backdrop-filter:blur(8px)}
     #score{direction:ltr;unicode-bidi:plaintext}
-    .controls{position:absolute;bottom:14px;left:14px;right:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;direction:ltr}
+    .controls{position:absolute;bottom:14px;left:14px;right:14px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;direction:ltr}
     .controls button{pointer-events:auto;background:rgba(255,255,255,.13);color:white;backdrop-filter:blur(10px);box-shadow:none;border:1px solid rgba(255,255,255,.12);font-size:22px}
     .controls button:active{background:rgba(34,255,153,.35);box-shadow:0 0 34px rgba(34,255,153,.35)}
+    #fire{background:rgba(34,255,153,.22);color:#eafff5;font-size:18px}
   </style>
 </head>
 <body>
@@ -57,6 +58,7 @@
         <button id="left">◀</button>
         <button id="up">▲</button>
         <button id="right">▶</button>
+        <button id="fire">אש</button>
       </div>
     </section>
   </div>
