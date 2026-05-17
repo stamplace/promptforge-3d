@@ -89,6 +89,20 @@
       font-size:15px;
       box-shadow:0 12px 34px rgba(34,255,153,.24);
     }
+    .tagline{
+      direction:rtl;
+      color:#eafff5;
+      font-size:13px;
+      line-height:1.25;
+      opacity:.92;
+      background:linear-gradient(90deg,rgba(34,255,153,.13),rgba(124,58,237,.12));
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px;
+      padding:8px 11px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
     #dna{
       display:flex;
       gap:6px;
@@ -220,8 +234,8 @@
   <div class="app">
     <section class="top">
       <div class="brand">
-        <h1>PromptForge 3D</h1>
-        <div class="pill">v0.6.2 rescue</div>
+        <h1 id="gameName">PromptForge 3D</h1>
+        <div class="pill">v0.8 publish</div>
       </div>
 
       <div class="prompt-row">
@@ -229,6 +243,7 @@
         <button id="forge">פתח</button>
       </div>
 
+      <div class="tagline" id="tagline">כתוב משחק. שחק בו עכשיו.</div>
       <div id="dna">
         <div class="atom"><span class="dot"></span><span>חוויה אחת מושלמת למובייל</span></div>
       </div>

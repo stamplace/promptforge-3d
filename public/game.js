@@ -8,6 +8,8 @@ const scoreEl = document.querySelector("#score");
 const titleEl = document.querySelector("#title");
 const hintEl = document.querySelector("#hint");
 const flashEl = document.querySelector("#flash");
+const gameNameEl = document.querySelector("#gameName");
+const taglineEl = document.querySelector("#tagline");
 const centerCard = document.querySelector("#centerCard");
 const centerTitle = document.querySelector("#centerTitle");
 const centerSub = document.querySelector("#centerSub");
@@ -170,6 +172,8 @@ function setupScene(data) {
   portal.position.set(0, 1, -7.4);
   scene.add(portal);
 
+  if (gameNameEl) gameNameEl.textContent = data.title || "PromptForge 3D";
+  if (taglineEl) taglineEl.textContent = data.tagline || data.adLine || "כתוב משחק. שחק בו עכשיו.";
   renderDna(data);
   hud(data.world);
   hintEl.textContent = "המשחק נפתח...";
@@ -291,16 +295,16 @@ function animate() {
 function countdownStart() {
   hideCenter();
   let n = 3;
-  showCenter(String(n), "המשחק נבנה מהמילים שלך", "מתחילים");
+  showCenter(String(n), spec.tagline || "המשחק נבנה מהמילים שלך", spec.title || "מתחילים");
   const timer = setInterval(() => {
     n -= 1;
     if (n > 0) {
-      showCenter(String(n), "תתכונן לגרירה", "מתחילים");
+      showCenter(String(n), "תתכונן לגרירה", spec.title || "מתחילים");
       vibrate(12);
       return;
     }
     if (n === 0) {
-      showCenter("רוץ", "גרור אצבע על הזירה", spec.world);
+      showCenter("רוץ", spec.tagline || "גרור אצבע על הזירה", spec.title || spec.world);
       vibrate(35);
       return;
     }
