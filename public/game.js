@@ -8,6 +8,9 @@ const scoreEl = document.querySelector("#score");
 const titleEl = document.querySelector("#title");
 const hintEl = document.querySelector("#hint");
 const flashEl = document.querySelector("#flash");
+const centerCard = document.querySelector("#centerCard");
+const centerTitle = document.querySelector("#centerTitle");
+const centerSub = document.querySelector("#centerSub");
 
 let scene, camera, renderer, player, portal, rafId;
 let lanes = [];
@@ -22,6 +25,10 @@ let targetX = 0;
 let targetZ = 4.6;
 let touchActive = false;
 let lastHitAt = 0;
+let combo = 0;
+let bestCombo = 0;
+let startedAt = 0;
+let speedBoost = 1;
 
 function makeMat(color, emissive = 0) {
   return new THREE.MeshStandardMaterial({
@@ -58,8 +65,31 @@ function renderDna(data) {
 }
 
 function hud(message = null) {
-  scoreEl.textContent = `🎯 ${score}/${targetScore} · ❤️ ${lives}`;
+  const comboText = combo > 1 ? ` · 🔥 ${combo}` : "";
+  scoreEl.textContent = `🎯 ${score}/${targetScore} · ❤️ ${lives}${comboText}`;
   if (message) titleEl.textContent = message;
+}
+
+function vibrate(ms = 18) {
+  if (navigator.vibrate) navigator.vibrate(ms);
+}
+
+function showCenter(title, sub = "", kicker = "PromptForge 3D") {
+  centerTitle.textContent = title;
+  centerSub.textContent = sub;
+  centerCard.querySelector(".center-kicker").textContent = kicker;
+  centerCard.classList.add("show");
+}
+
+function hideCenter() {
+  centerCard.classList.remove("show");
+}
+
+function finishGame(title, sub) {
+  running = false;
+  showCenter(title, sub, "סיום משחק");
+  hintEl.textContent = "לחץ פתח כדי ליצור משחק חדש";
+  vibrate(60);
 }
 
 function flash() {
@@ -76,7 +106,10 @@ function setupScene(data) {
   lastHitAt = 0;
   objects = [];
   lanes = [];
-  running = true;
+  running = false;
+  combo = 0;
+  bestCombo = 0;
+  speedBoost = 1;
   targetX = 0;
   targetZ = 4.6;
 
@@ -138,12 +171,13 @@ function setupScene(data) {
 
   renderDna(data);
   hud(data.world);
-  hintEl.textContent = "גרור אצבע על הזירה";
+  hintEl.textContent = "המשחק נפתח...";
   animate();
+  countdownStart();
 }
 
 function spawnObject(now) {
-  if (!spec || now - lastSpawn < spec.tuning.spawnEveryMs) return;
+  if (!spec || now - lastSpawn < Math.max(360, spec.tuning.spawnEveryMs / speedBoost) return;
   lastSpawn = now;
 
   const isDanger = Math.random() < spec.tuning.obstacleChance;
@@ -164,7 +198,7 @@ function moveWorld() {
   }
 
   for (const obj of objects) {
-    obj.position.z += spec.speed * 2.25;
+    obj.position.z += spec.speed * 2.25 * speedBoost;
     obj.rotation.y += obj.userData.spin;
     obj.rotation.x += obj.userData.spin * 0.6;
   }
@@ -196,13 +230,15 @@ function handleCollisions() {
     scene.remove(obj);
 
     if (obj.userData.kind === "shard") {
-      score += 1;
+      combo += 1;
+      bestCombo = Math.max(bestCombo, combo);
+      score += combo >= 5 ? 2 : 1;
+      speedBoost = Math.min(1.65, 1 + score / 55);
       flash();
-      hud("אנרגיה נאספה");
+      vibrate(combo >= 5 ? 35 : 16);
+      hud(combo >= 5 ? "קומבו כפול!" : "אנרגיה נאספה");
       if (score >= targetScore) {
-        running = false;
-        hud("ניצחת — כתוב משחק חדש");
-        hintEl.textContent = "ניצחת";
+        finishGame("ניצחת", `קומבו שיא: ${bestCombo}`);
       }
       return false;
     }
@@ -210,14 +246,13 @@ function handleCollisions() {
     if (now - lastHitAt > 900) {
       lastHitAt = now;
       lives -= 1;
+      combo = 0;
+      speedBoost = Math.max(1, speedBoost - 0.18);
       flash();
+      vibrate(80);
 
       if (lives <= 0) {
-        lives = spec.tuning.lives;
-        score = 0;
-        objects.forEach(o => scene.remove(o));
-        objects = [];
-        hud("נפלת — התחלה נקייה");
+        finishGame("נפלת", `הגעת ל־${score} נקודות`);
       } else {
         hud(`פגיעה — נשארו ${lives} חיים`);
       }
@@ -234,6 +269,7 @@ function animate() {
   const now = Date.now();
 
   if (running) {
+    speedBoost = Math.min(1.75, speedBoost + 0.00045);
     spawnObject(now);
     moveWorld();
     updatePlayer();
@@ -248,6 +284,32 @@ function animate() {
 
   hud();
   renderer.render(scene, camera);
+}
+
+
+function countdownStart() {
+  hideCenter();
+  let n = 3;
+  showCenter(String(n), "המשחק נבנה מהמילים שלך", "מתחילים");
+  const timer = setInterval(() => {
+    n -= 1;
+    if (n > 0) {
+      showCenter(String(n), "תתכונן לגרירה", "מתחילים");
+      vibrate(12);
+      return;
+    }
+    if (n === 0) {
+      showCenter("רוץ", "גרור אצבע על הזירה", spec.world);
+      vibrate(35);
+      return;
+    }
+    clearInterval(timer);
+    hideCenter();
+    running = true;
+    startedAt = Date.now();
+    lastSpawn = 0;
+    hintEl.textContent = "גרור כדי להתחמק ולאסוף";
+  }, 620);
 }
 
 function pointerToTarget(e) {
