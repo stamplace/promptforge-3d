@@ -6,430 +6,303 @@ const forgeEl = document.querySelector("#forge");
 const dnaEl = document.querySelector("#dna");
 const scoreEl = document.querySelector("#score");
 const titleEl = document.querySelector("#title");
+const hintEl = document.querySelector("#hint");
+const flashEl = document.querySelector("#flash");
 
 let scene, camera, renderer, player, portal, rafId;
-let shards = [];
-let blockers = [];
-let bullets = [];
-let keys = {};
+let lanes = [];
+let objects = [];
 let score = 0;
 let lives = 3;
-let scoreTarget = 0;
-let activeSpec = null;
-let lastShotAt = 0;
+let targetScore = 24;
+let spec = null;
+let lastSpawn = 0;
+let running = false;
+let targetX = 0;
+let targetZ = 4.6;
+let touchActive = false;
 let lastHitAt = 0;
-let frozen = false;
 
-function makeBox(color, size = [1, 1, 1]) {
-  return new THREE.Mesh(
-    new THREE.BoxGeometry(...size),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.2 })
-  );
+function makeMat(color, emissive = 0) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: emissive,
+    roughness: 0.32,
+    metalness: 0.18
+  });
+}
+
+function makeBox(color, size = [1, 1, 1], emissive = 0) {
+  return new THREE.Mesh(new THREE.BoxGeometry(...size), makeMat(color, emissive));
 }
 
 function makeShard(color) {
-  return new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.26, 0),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.85 })
-  );
+  return new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0), makeMat(color, 0.85));
 }
 
-function makeBullet(color) {
-  return new THREE.Mesh(
-    new THREE.SphereGeometry(0.13, 16, 16),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1 })
-  );
+function makeDanger(color) {
+  return new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), makeMat(color, 0.22));
 }
 
 function clearStage() {
   if (rafId) cancelAnimationFrame(rafId);
-  const old = stage.querySelector("canvas");
-  if (old) old.remove();
+  stage.querySelector("canvas")?.remove();
   if (renderer) renderer.dispose();
 }
 
-function renderDna(spec) {
-  dnaEl.innerHTML = spec.atoms.map(atom => (
+function renderDna(data) {
+  dnaEl.innerHTML = data.atoms.map(atom => (
     `<div class="atom"><span class="dot"></span><span>${atom}</span></div>`
   )).join("");
 }
 
-function setHud(message = null) {
-  if (!activeSpec) return;
-  const lifeText = activeSpec.gameMode === "battle" ? ` · ❤️ ${lives}` : "";
-  scoreEl.textContent = `🎯 ${score}/${scoreTarget}${lifeText}`;
+function hud(message = null) {
+  scoreEl.textContent = `🎯 ${score}/${targetScore} · ❤️ ${lives}`;
   if (message) titleEl.textContent = message;
 }
 
-function addSceneRails(spec) {
-  if (spec.gameMode === "runner") {
-    for (let i = 0; i < 16; i++) {
-      const rail = makeBox(spec.colors.accent, [0.08, 0.08, 1.2]);
-      rail.position.set(i % 2 ? 6.2 : -6.2, 0.08, 7 - i * 1.1);
-      rail.material.emissive = new THREE.Color(spec.colors.accent);
-      rail.material.emissiveIntensity = 0.35;
-      scene.add(rail);
-    }
-  }
-
-  if (spec.gameMode === "maze") {
-    for (let z = -7; z <= 6; z += 2) {
-      const left = makeBox(spec.colors.danger, [0.32, 1.2, 1.4]);
-      left.position.set(-4 + Math.sin(z) * 1.2, 0.55, z);
-      left.userData.wall = true;
-      scene.add(left);
-      blockers.push(left);
-
-      const right = makeBox(spec.colors.danger, [0.32, 1.2, 1.4]);
-      right.position.set(4 + Math.cos(z) * 1.2, 0.55, z);
-      right.userData.wall = true;
-      scene.add(right);
-      blockers.push(right);
-    }
-  }
-
-  if (spec.gameMode === "battle") {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(5.7, 0.045, 12, 96),
-      new THREE.MeshStandardMaterial({
-        color: spec.colors.danger,
-        emissive: spec.colors.danger,
-        emissiveIntensity: 0.32
-      })
-    );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = 0.035;
-    scene.add(ring);
-  }
+function flash() {
+  flashEl.classList.add("on");
+  setTimeout(() => flashEl.classList.remove("on"), 120);
 }
 
-function placeShards(spec) {
-  const n = spec.counts.shards;
-  for (let i = 0; i < n; i++) {
-    const shard = makeShard(spec.colors.player);
-
-    if (spec.gameMode === "runner") {
-      shard.position.set(Math.sin(i * 1.4) * 3.5, 0.6, 6 - i * 1.05);
-    } else if (spec.gameMode === "maze") {
-      shard.position.set((i % 2 ? 2.8 : -2.8), 0.6, 5 - i * 1.65);
-    } else if (spec.gameMode === "battle") {
-      const a = (i / n) * Math.PI * 2 + 0.3;
-      shard.position.set(Math.cos(a) * 3.8, 0.6, Math.sin(a) * 3.8);
-    } else {
-      shard.position.set((Math.random() - 0.5) * 10, 0.6, (Math.random() - 0.5) * 12);
-    }
-
-    shards.push(shard);
-    scene.add(shard);
-  }
-}
-
-function placeBlockers(spec) {
-  if (spec.gameMode === "maze") return;
-
-  for (let i = 0; i < spec.counts.blockers; i++) {
-    const size = spec.gameMode === "runner" ? [0.75, 0.75, 0.75] : [0.86, 0.86, 0.86];
-    const blocker = makeBox(spec.colors.danger, size);
-
-    if (spec.gameMode === "runner") {
-      blocker.position.set(Math.sin(i * 2.1) * 4.8, 0.5, 5.5 - i * 1.25);
-    } else if (spec.gameMode === "battle") {
-      const a = (i / spec.counts.blockers) * Math.PI * 2;
-      blocker.position.set(Math.cos(a) * 5.35, 0.5, Math.sin(a) * 5.35);
-      blocker.userData.enemy = true;
-      blocker.userData.spawnAngle = a;
-    } else {
-      blocker.position.set((Math.random() - 0.5) * 11, 0.5, (Math.random() - 0.5) * 12);
-    }
-
-    blocker.userData.phase = Math.random() * Math.PI * 2;
-    blockers.push(blocker);
-    scene.add(blocker);
-  }
-}
-
-function initGame(spec) {
-  activeSpec = spec;
+function setupScene(data) {
+  spec = data;
   score = 0;
-  lives = 3;
-  scoreTarget = spec.gameMode === "battle" ? spec.counts.blockers + spec.counts.shards : spec.counts.shards;
-  shards = [];
-  blockers = [];
-  bullets = [];
-  lastShotAt = 0;
+  lives = data.tuning.lives;
+  targetScore = data.tuning.targetScore;
+  lastSpawn = 0;
   lastHitAt = 0;
-  frozen = false;
+  objects = [];
+  lanes = [];
+  running = true;
+  targetX = 0;
+  targetZ = 4.6;
+
   clearStage();
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(spec.colors.background);
+  scene.background = new THREE.Color(data.colors.background);
 
   const w = stage.clientWidth || window.innerWidth;
-  const h = stage.clientHeight || Math.floor(window.innerHeight * 0.55);
+  const h = stage.clientHeight || Math.floor(window.innerHeight * 0.72);
 
-  camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 100);
-  if (spec.gameMode === "runner") camera.position.set(0, 6.3, 10.2);
-  else if (spec.gameMode === "maze") camera.position.set(0, 9.2, 8.9);
-  else if (spec.gameMode === "battle") camera.position.set(0, 10.4, 11.2);
-  else camera.position.set(0, 7.8, 9.8);
-  camera.lookAt(0, 0, 0);
+  camera = new THREE.PerspectiveCamera(64, w / h, 0.1, 100);
+  camera.position.set(0, 7.6, 9.6);
+  camera.lookAt(0, 0, 0.5);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.6));
   renderer.setSize(w, h);
   stage.appendChild(renderer.domElement);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x182033, 2.35));
-  const key = new THREE.DirectionalLight(0xffffff, 1.05);
-  key.position.set(3, 8, 4);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x111827, 2.25));
+
+  const key = new THREE.DirectionalLight(0xffffff, 0.95);
+  key.position.set(3, 8, 5);
   scene.add(key);
 
-  const floor = makeBox(spec.colors.floor, [14, 0.22, 18]);
-  floor.position.y = -0.2;
+  const floor = makeBox(data.colors.floor, [8.2, 0.18, 20], 0);
+  floor.position.y = -0.18;
   scene.add(floor);
 
-  addSceneRails(spec);
+  for (let i = 0; i < 12; i++) {
+    const left = makeBox(data.colors.rail, [0.06, 0.06, 1.25], 0.45);
+    left.position.set(-4.15, 0.04, 7 - i * 1.75);
+    scene.add(left);
+    lanes.push(left);
 
-  player = makeBox(spec.colors.player, [0.78, 0.78, 0.78]);
-  player.position.set(0, 0.45, spec.gameMode === "battle" ? 2.7 : 6.8);
+    const right = makeBox(data.colors.rail, [0.06, 0.06, 1.25], 0.45);
+    right.position.set(4.15, 0.04, 7 - i * 1.75);
+    scene.add(right);
+    lanes.push(right);
+  }
+
+  for (let x of [-2.6, 0, 2.6]) {
+    const line = makeBox("#172033", [0.035, 0.035, 18], 0.08);
+    line.position.set(x, 0.01, 0);
+    scene.add(line);
+  }
+
+  player = makeBox(data.colors.player, [0.78, 0.78, 0.78], 0.42);
+  player.position.set(0, 0.46, 4.6);
   scene.add(player);
-
-  placeShards(spec);
-  placeBlockers(spec);
 
   portal = new THREE.Mesh(
     new THREE.TorusGeometry(0.82, 0.075, 16, 64),
-    new THREE.MeshStandardMaterial({
-      color: spec.colors.goal,
-      emissive: spec.colors.goal,
-      emissiveIntensity: 0.85
-    })
+    makeMat(data.colors.portal, 0.78)
   );
   portal.position.set(0, 1, -7.4);
   scene.add(portal);
 
-  renderDna(spec);
-  setHud(spec.gameMode === "battle" ? "קרב יציב — אש על אויבים" : spec.world);
+  renderDna(data);
+  hud(data.world);
+  hintEl.textContent = "גרור אצבע על הזירה";
   animate();
 }
 
-function move(dx, dz) {
-  if (!player || frozen) return;
-  player.position.x = Math.max(-6, Math.min(6, player.position.x + dx));
-  player.position.z = Math.max(-8, Math.min(7.2, player.position.z + dz));
+function spawnObject(now) {
+  if (!spec || now - lastSpawn < spec.tuning.spawnEveryMs) return;
+  lastSpawn = now;
+
+  const isDanger = Math.random() < spec.tuning.obstacleChance;
+  const obj = isDanger ? makeDanger(spec.colors.danger) : makeShard(spec.colors.shard);
+  obj.userData.kind = isDanger ? "danger" : "shard";
+  obj.userData.spin = Math.random() * 0.04 + 0.018;
+
+  const lanesX = [-2.8, -1.35, 0, 1.35, 2.8];
+  obj.position.set(lanesX[Math.floor(Math.random() * lanesX.length)], 0.55, -8.8);
+  objects.push(obj);
+  scene.add(obj);
 }
 
-function fireBullet() {
-  if (!activeSpec || activeSpec.gameMode !== "battle" || !player || frozen) return;
+function moveWorld() {
+  for (const rail of lanes) {
+    rail.position.z += spec.speed * 1.9;
+    if (rail.position.z > 8.4) rail.position.z = -11.2;
+  }
 
-  const now = Date.now();
-  if (now - lastShotAt < 240) return;
-  lastShotAt = now;
-
-  const bullet = makeBullet(activeSpec.colors.player);
-  bullet.position.set(player.position.x, 0.58, player.position.z - 0.62);
-  bullet.userData.vz = -0.36;
-  bullets.push(bullet);
-  scene.add(bullet);
-  setHud("אש!");
-}
-
-function updateControls() {
-  const v = activeSpec.speed;
-  if (keys.ArrowLeft) move(-v, 0);
-  if (keys.ArrowRight) move(v, 0);
-  if (keys.ArrowUp) move(0, -v);
-  if (keys.ArrowDown) move(0, v);
-  if (keys.Space || keys.Fire) fireBullet();
-
-  if (activeSpec.gameMode === "runner") {
-    move(0, -v * 0.34);
-    if (player.position.z < -7.2) player.position.z = 6.8;
+  for (const obj of objects) {
+    obj.position.z += spec.speed * 2.25;
+    obj.rotation.y += obj.userData.spin;
+    obj.rotation.x += obj.userData.spin * 0.6;
   }
 }
 
-function resetEnemiesSoft() {
-  if (activeSpec.gameMode !== "battle") return;
-  blockers.forEach((b, i) => {
-    if (!b.userData.enemy) return;
-    const a = b.userData.spawnAngle ?? (i / Math.max(1, blockers.length)) * Math.PI * 2;
-    b.position.set(Math.cos(a) * 5.35, 0.5, Math.sin(a) * 5.35);
+function cleanupObjects() {
+  objects = objects.filter(obj => {
+    if (obj.position.z > 8.6) {
+      scene.remove(obj);
+      return false;
+    }
+    return true;
   });
 }
 
-function damagePlayer() {
+function updatePlayer() {
+  player.position.x += (targetX - player.position.x) * 0.18;
+  player.position.z += (targetZ - player.position.z) * 0.12;
+  player.rotation.y += (targetX * 0.12 - player.rotation.y) * 0.1;
+  player.rotation.x += 0.012;
+}
+
+function handleCollisions() {
   const now = Date.now();
-  if (now - lastHitAt < 1100) return;
-  lastHitAt = now;
 
-  lives -= 1;
-  player.position.set(0, 0.45, activeSpec.gameMode === "battle" ? 2.7 : 6.8);
-  resetEnemiesSoft();
+  objects = objects.filter(obj => {
+    if (obj.position.distanceTo(player.position) > 0.72) return true;
 
-  if (lives <= 0) {
-    lives = 3;
-    score = 0;
-    setHud("נפלת — קיבלת התחלה נקייה");
-  } else {
-    setHud(`נפגעת — נשארו ${lives} חיים`);
-  }
-}
+    scene.remove(obj);
 
-function updateBlockers(t) {
-  blockers.forEach((b, i) => {
-    b.rotation.y += 0.022;
-    b.rotation.x += activeSpec.gameMode === "battle" ? 0.014 : 0.005;
-
-    if (activeSpec.gameMode === "battle" && b.userData.enemy) {
-      const dx = player.position.x - b.position.x;
-      const dz = player.position.z - b.position.z;
-      const len = Math.max(0.001, Math.hypot(dx, dz));
-      b.position.x += (dx / len) * 0.009;
-      b.position.z += (dz / len) * 0.009;
-    } else if (activeSpec.gameMode === "runner") {
-      b.position.z += 0.038;
-      if (b.position.z > 7.2) b.position.z = -7.2;
-    } else if (activeSpec.gameMode !== "maze") {
-      b.position.x += Math.sin(t / 620 + b.userData.phase + i) * 0.006;
+    if (obj.userData.kind === "shard") {
+      score += 1;
+      flash();
+      hud("אנרגיה נאספה");
+      if (score >= targetScore) {
+        running = false;
+        hud("ניצחת — כתוב משחק חדש");
+        hintEl.textContent = "ניצחת";
+      }
+      return false;
     }
 
-    if (b.position.distanceTo(player.position) < 0.82) {
-      damagePlayer();
-    }
-  });
-}
+    if (now - lastHitAt > 900) {
+      lastHitAt = now;
+      lives -= 1;
+      flash();
 
-function updateBullets() {
-  if (activeSpec.gameMode !== "battle") return;
-
-  bullets = bullets.filter(bullet => {
-    bullet.position.z += bullet.userData.vz;
-    bullet.rotation.y += 0.08;
-
-    for (const enemy of [...blockers]) {
-      if (!enemy.userData.enemy) continue;
-      if (enemy.position.distanceTo(bullet.position) < 0.76) {
-        scene.remove(enemy);
-        scene.remove(bullet);
-        blockers = blockers.filter(x => x !== enemy);
-        score += 1;
-        setHud("פגיעה!");
-        return false;
+      if (lives <= 0) {
+        lives = spec.tuning.lives;
+        score = 0;
+        objects.forEach(o => scene.remove(o));
+        objects = [];
+        hud("נפלת — התחלה נקייה");
+      } else {
+        hud(`פגיעה — נשארו ${lives} חיים`);
       }
     }
 
-    if (bullet.position.z < -8.5) {
-      scene.remove(bullet);
-      return false;
-    }
-
-    return true;
+    return false;
   });
-}
-
-function updateShards(t) {
-  shards = shards.filter(s => {
-    s.rotation.y += 0.055;
-    s.position.y = 0.6 + Math.sin(t / 320 + s.position.x) * 0.06;
-    if (activeSpec.gameMode === "runner") {
-      s.position.z += 0.018;
-      if (s.position.z > 7.2) s.position.z = -7.2;
-    }
-
-    if (s.position.distanceTo(player.position) < 0.7) {
-      scene.remove(s);
-      score += 1;
-      setHud("אנרגיה נאספה");
-      return false;
-    }
-    return true;
-  });
-}
-
-function checkWin() {
-  if (activeSpec.gameMode === "battle" && blockers.filter(b => b.userData.enemy).length === 0 && shards.length === 0) {
-    frozen = true;
-    titleEl.textContent = "ניצחת בקרב — כתוב משחק חדש";
-    return;
-  }
-
-  if (portal.position.distanceTo(player.position) < 1.1 && shards.length === 0) {
-    frozen = true;
-    titleEl.textContent = "ניצחת — כתוב משחק חדש";
-  }
 }
 
 function animate() {
   rafId = requestAnimationFrame(animate);
-  if (!activeSpec || !renderer) return;
+  if (!renderer || !spec) return;
 
-  const t = Date.now();
-  if (!frozen) {
-    updateControls();
-    updateBlockers(t);
-    updateBullets();
-    updateShards(t);
-    checkWin();
+  const now = Date.now();
+
+  if (running) {
+    spawnObject(now);
+    moveWorld();
+    updatePlayer();
+    handleCollisions();
+    cleanupObjects();
   }
 
-  setHud();
-  portal.rotation.z += 0.023;
-  player.rotation.y += 0.018;
+  portal.rotation.z += 0.024;
+  portal.position.y = 1 + Math.sin(now / 420) * 0.05;
+  camera.position.x += (player.position.x * 0.22 - camera.position.x) * 0.04;
+  camera.lookAt(player.position.x * 0.1, 0, 0.4);
 
-  if (activeSpec.gameMode === "runner") {
-    camera.position.x += (player.position.x * 0.28 - camera.position.x) * 0.05;
-    camera.lookAt(player.position.x * 0.18, 0, player.position.z - 2.2);
-  } else if (activeSpec.gameMode === "battle") {
-    camera.lookAt(player.position.x * 0.12, 0, player.position.z - 1.4);
-  }
-
+  hud();
   renderer.render(scene, camera);
 }
 
+function pointerToTarget(e) {
+  const rect = stage.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const y = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+
+  targetX = Math.max(-3.4, Math.min(3.4, x * 4.1));
+  targetZ = Math.max(2.5, Math.min(6.2, 4.7 + y * 2.3));
+}
+
+stage.addEventListener("pointerdown", e => {
+  touchActive = true;
+  stage.setPointerCapture?.(e.pointerId);
+  pointerToTarget(e);
+  hintEl.textContent = "עזוב בעדינות, המשך לגרור";
+});
+
+stage.addEventListener("pointermove", e => {
+  if (!touchActive) return;
+  pointerToTarget(e);
+});
+
+stage.addEventListener("pointerup", e => {
+  touchActive = false;
+  stage.releasePointerCapture?.(e.pointerId);
+  hintEl.textContent = "גרור אצבע על הזירה";
+});
+
+stage.addEventListener("pointercancel", () => {
+  touchActive = false;
+});
+
 async function forge() {
   forgeEl.disabled = true;
-  forgeEl.textContent = "פותח משחק...";
+  forgeEl.textContent = "פותח";
   const res = await fetch("/api/forge", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ prompt: promptEl.value })
   });
-  const spec = await res.json();
-  initGame(spec);
+  const data = await res.json();
+  setupScene(data);
   forgeEl.disabled = false;
-  forgeEl.textContent = "פתח את המשחק שלי";
+  forgeEl.textContent = "פתח";
 }
-
-forgeEl.onclick = forge;
-
-addEventListener("keydown", e => keys[e.code || e.key] = true);
-addEventListener("keyup", e => keys[e.code || e.key] = false);
-
-function bindHold(id, key) {
-  const el = document.querySelector("#" + id);
-  if (!el) return;
-  const on = e => { e.preventDefault(); keys[key] = true; };
-  const off = e => { e.preventDefault(); keys[key] = false; };
-  el.addEventListener("touchstart", on, { passive: false });
-  el.addEventListener("touchend", off, { passive: false });
-  el.addEventListener("touchcancel", off, { passive: false });
-  el.addEventListener("mousedown", on);
-  el.addEventListener("mouseup", off);
-  el.addEventListener("mouseleave", off);
-}
-
-bindHold("left", "ArrowLeft");
-bindHold("right", "ArrowRight");
-bindHold("up", "ArrowUp");
-bindHold("fire", "Fire");
 
 window.addEventListener("resize", () => {
   if (!camera || !renderer) return;
   const w = stage.clientWidth || window.innerWidth;
-  const h = stage.clientHeight || Math.floor(window.innerHeight * 0.55);
+  const h = stage.clientHeight || Math.floor(window.innerHeight * 0.72);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
 });
 
+forgeEl.onclick = forge;
 forge();

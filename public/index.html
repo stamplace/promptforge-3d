@@ -2,105 +2,220 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>PromptForge 3D</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <title>PromptForge 3D Mobile</title>
   <style>
-    *{box-sizing:border-box}
-    html,body{margin:0;min-height:100%;background:#05060a;color:white;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
-    body{overflow:hidden}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:#04070d;
+      color:white;
+      font-family:system-ui,-apple-system,Segoe UI,sans-serif;
+      touch-action:none;
+    }
     .app{
+      width:100vw;
       height:100dvh;
       max-height:100dvh;
       display:grid;
       grid-template-rows:auto minmax(0,1fr);
       background:
-        radial-gradient(circle at 50% -10%,rgba(34,255,153,.24),transparent 34%),
-        radial-gradient(circle at 90% 10%,rgba(124,58,237,.2),transparent 28%),
-        linear-gradient(180deg,#07111c 0%,#05060a 52%,#020307 100%);
-      padding-bottom:env(safe-area-inset-bottom);
+        radial-gradient(circle at 50% -8%,rgba(34,255,153,.28),transparent 30%),
+        radial-gradient(circle at 85% 8%,rgba(124,58,237,.24),transparent 28%),
+        linear-gradient(180deg,#071522 0%,#04070d 58%,#020307 100%);
+      padding:env(safe-area-inset-top) 10px env(safe-area-inset-bottom);
     }
-    .top{padding:10px 14px 8px;display:grid;gap:8px}
-    .brand{display:flex;align-items:end;justify-content:space-between;gap:10px}
-    h1{margin:0;font-size:24px;letter-spacing:-.04em;line-height:1}
-    .sub{color:#b8c7d9;font-size:13px}
-    .pill{direction:ltr;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);border-radius:999px;padding:6px 10px;color:#dce8f4;font-size:12px}
-    textarea{
-      width:100%;
-      min-height:74px;
-      max-height:92px;
-      border:1px solid #24485d;
-      border-radius:22px;
-      background:rgba(3,10,18,.78);
-      color:white;
-      padding:12px 14px;
-      font-size:17px;
-      line-height:1.45;
-      outline:none;
-      resize:none;
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);
-    }
-    button{border:0;border-radius:20px;padding:13px 18px;font-weight:950;background:#22ff99;color:#03100a;font-size:17px;box-shadow:0 12px 34px rgba(34,255,153,.25)}
-    #dna{display:grid;gap:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:9px 12px;font-size:12.5px;color:#dce8f4;max-height:72px;overflow:auto}
-    .atom{display:flex;gap:6px;align-items:center}
-    .dot{width:6px;height:6px;border-radius:999px;background:#22ff99;box-shadow:0 0 12px #22ff99;flex:0 0 auto}
-    #stage{position:relative;min-height:0;border-top:1px solid #183247;overflow:hidden}
-    canvas{width:100%;height:100%;display:block;touch-action:none}
-    .hud{position:absolute;inset:12px 12px auto 12px;pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;direction:ltr}
-    .badge{background:rgba(0,0,0,.56);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:8px 12px;font-size:13px;backdrop-filter:blur(8px);max-width:62%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #title{direction:rtl;text-align:right}
-    #score{direction:ltr;unicode-bidi:plaintext;text-align:left}
-    .controls{
-      position:absolute;
-      left:14px;
-      right:14px;
-      bottom:calc(12px + env(safe-area-inset-bottom));
+    .top{
       display:grid;
-      grid-template-columns:1fr 1fr 1fr 1fr;
-      gap:9px;
+      gap:8px;
+      padding:8px 2px 8px;
+      z-index:4;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
       direction:ltr;
     }
-    .controls button{
-      pointer-events:auto;
-      min-height:58px;
-      background:rgba(255,255,255,.13);
-      color:white;
-      backdrop-filter:blur(10px);
-      box-shadow:none;
-      border:1px solid rgba(255,255,255,.12);
-      font-size:21px;
-      padding:10px 8px;
+    h1{
+      margin:0;
+      font-size:22px;
+      line-height:1;
+      letter-spacing:-.04em;
+      direction:ltr;
     }
-    .controls button:active{background:rgba(34,255,153,.35);box-shadow:0 0 34px rgba(34,255,153,.35)}
-    #fire{background:rgba(34,255,153,.22);color:#eafff5;font-size:18px}
+    .pill{
+      border:1px solid rgba(255,255,255,.13);
+      background:rgba(255,255,255,.07);
+      border-radius:999px;
+      padding:6px 10px;
+      color:#dce8f4;
+      font-size:12px;
+      direction:ltr;
+    }
+    .prompt-row{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:8px;
+      align-items:stretch;
+      direction:rtl;
+    }
+    textarea{
+      width:100%;
+      height:58px;
+      border:1px solid rgba(92,142,171,.55);
+      border-radius:20px;
+      background:rgba(3,10,18,.72);
+      color:white;
+      padding:10px 12px;
+      font-size:15.5px;
+      line-height:1.35;
+      outline:none;
+      resize:none;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.035);
+    }
+    button{
+      border:0;
+      border-radius:20px;
+      padding:0 16px;
+      min-width:88px;
+      font-weight:950;
+      background:#22ff99;
+      color:#03100a;
+      font-size:15px;
+      box-shadow:0 12px 34px rgba(34,255,153,.24);
+    }
+    #dna{
+      display:flex;
+      gap:6px;
+      overflow-x:auto;
+      direction:rtl;
+      scrollbar-width:none;
+      padding-bottom:1px;
+    }
+    #dna::-webkit-scrollbar{display:none}
+    .atom{
+      flex:0 0 auto;
+      display:flex;
+      gap:6px;
+      align-items:center;
+      background:rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px;
+      padding:7px 10px;
+      font-size:12px;
+      color:#dce8f4;
+      white-space:nowrap;
+    }
+    .dot{
+      width:6px;
+      height:6px;
+      border-radius:999px;
+      background:#22ff99;
+      box-shadow:0 0 12px #22ff99;
+      flex:0 0 auto;
+    }
+    #stage{
+      position:relative;
+      min-height:0;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:28px;
+      background:#03050a;
+      box-shadow:
+        inset 0 0 0 1px rgba(34,255,153,.05),
+        0 18px 60px rgba(0,0,0,.38);
+    }
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+      touch-action:none;
+    }
+    .hud{
+      position:absolute;
+      top:12px;
+      left:12px;
+      right:12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:8px;
+      pointer-events:none;
+      direction:ltr;
+      z-index:2;
+    }
+    .badge{
+      background:rgba(0,0,0,.58);
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      backdrop-filter:blur(10px);
+      max-width:58%;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #title{direction:rtl;text-align:right}
+    #score{direction:ltr;unicode-bidi:plaintext}
+    .hint{
+      position:absolute;
+      left:50%;
+      bottom:18px;
+      transform:translateX(-50%);
+      pointer-events:none;
+      z-index:2;
+      color:#dce8f4;
+      background:rgba(0,0,0,.42);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:999px;
+      padding:9px 13px;
+      font-size:13px;
+      backdrop-filter:blur(10px);
+      white-space:nowrap;
+    }
+    .flash{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      background:radial-gradient(circle at center,rgba(34,255,153,.22),transparent 42%);
+      opacity:0;
+      transition:opacity .18s ease;
+      z-index:1;
+    }
+    .flash.on{opacity:1}
   </style>
 </head>
 <body>
   <div class="app">
     <section class="top">
       <div class="brand">
-        <div>
-          <h1>PromptForge 3D</h1>
-          <div class="sub">כתוב משחק. שחק בו עכשיו.</div>
-        </div>
-        <div class="pill">v0.4.1 rescue</div>
+        <h1>PromptForge 3D</h1>
+        <div class="pill">v0.5 mobile</div>
       </div>
 
-      <textarea id="prompt">משחק קרב ניאון עם אויבים סגולים ואנרגיה ירוקה</textarea>
-      <button id="forge">פתח את המשחק שלי</button>
-      <div id="dna"><div class="atom"><span class="dot"></span><span>המילים שלך יהפכו לעולם משחק חי.</span></div></div>
+      <div class="prompt-row">
+        <textarea id="prompt">משחק חלל מהיר עם אנרגיה ירוקה ומכשולים סגולים בניאון</textarea>
+        <button id="forge">פתח</button>
+      </div>
+
+      <div id="dna">
+        <div class="atom"><span class="dot"></span><span>חוויה אחת מושלמת למובייל</span></div>
+      </div>
     </section>
 
     <section id="stage">
       <div class="hud">
-        <div class="badge" id="score">🎯 0/0</div>
+        <div class="badge" id="score">🎯 0/24 · ❤️ 3</div>
         <div class="badge" id="title">מוכן</div>
       </div>
-      <div class="controls">
-        <button id="left">◀</button>
-        <button id="up">▲</button>
-        <button id="right">▶</button>
-        <button id="fire">אש</button>
-      </div>
+      <div class="flash" id="flash"></div>
+      <div class="hint" id="hint">גרור אצבע על הזירה</div>
     </section>
   </div>
 

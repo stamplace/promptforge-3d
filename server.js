@@ -16,70 +16,56 @@ function hasAny(text, words) {
   return words.some(w => text.includes(w));
 }
 
-function gameFromPrompt(prompt) {
+function mobileGameFromPrompt(prompt) {
   const text = String(prompt || "").trim();
   const p = text.toLowerCase();
 
-  const dna = {
-    space: hasAny(p, ["space", "planet", "star", "galaxy", "חלל", "כוכב", "גלקס", "ירח"]),
-    fast: hasAny(p, ["fast", "runner", "race", "speed", "מהיר", "רץ", "מירוץ", "טיל"]),
-    magic: hasAny(p, ["magic", "dragon", "castle", "forest", "treasure", "קסם", "דרקון", "יער", "טירה", "אוצר"]),
-    dark: hasAny(p, ["dark", "night", "neon", "shadow", "לילה", "ניאון", "צל", "סגול"]),
-    maze: hasAny(p, ["maze", "walls", "מבוך", "קירות", "מסדרון"]),
-    battle: hasAny(p, ["battle", "fight", "enemy", "war", "shoot", "קרב", "אויב", "מלחמה", "יריות"])
-  };
-
-  const gameMode = dna.maze ? "maze" : dna.battle ? "battle" : dna.fast || dna.space ? "runner" : "adventure";
-
-  const modeLabels = {
-    runner: "ראנר חלל",
-    maze: "מבוך שערים",
-    battle: "ארנת קרב",
-    adventure: "הרפתקת איסוף"
-  };
+  const isSpace = hasAny(p, ["space", "planet", "star", "galaxy", "חלל", "כוכב", "גלקס", "ירח"]);
+  const isNeon = hasAny(p, ["neon", "dark", "night", "cyber", "ניאון", "חושך", "לילה", "סייבר"]);
+  const isMagic = hasAny(p, ["magic", "forest", "dragon", "treasure", "קסם", "יער", "דרקון", "אוצר"]);
+  const isFast = hasAny(p, ["fast", "speed", "race", "runner", "מהיר", "מירוץ", "רץ", "טיל"]);
 
   const world =
-    gameMode === "runner" ? "מסלול חלל מהיר" :
-    gameMode === "maze" ? "מבוך חי עם שער לבן" :
-    gameMode === "battle" ? "ארנת אויבים ניאונית" :
-    dna.magic ? "יער קסום מרחף" :
-    "עולם משחק נקי";
+    isSpace ? "מסלול חלל חי" :
+    isMagic ? "שביל קסום מרחף" :
+    isNeon ? "מסלול ניאון חשמלי" :
+    "מסלול אנרגיה נקי";
 
-  const goal =
-    gameMode === "runner" ? "רוץ קדימה, אסוף אנרגיה, ושרוד עד השער" :
-    gameMode === "maze" ? "מצא דרך בין הקירות, אסוף מפתחות, והגע לשער" :
-    gameMode === "battle" ? "התחמק מהאויבים, אסוף אנרגיה, והפעל את השער" :
-    "אסוף אוצרות והגע אל הפורטל";
+  const mood =
+    isSpace || isNeon ? "חד, חשמלי, עתידי" :
+    isMagic ? "קסום, רך, זוהר" :
+    "נקי, מהיר, ממכר";
 
   return {
+    version: "v0.5 mobile",
     title: "המשחק שלך נפתח",
     prompt: text,
-    gameMode,
-    genre: modeLabels[gameMode],
+    mode: "mobile-runner",
     world,
-    player: gameMode === "runner" ? "שחקן מהיר ירוק" : "גיבור ירוק",
-    goal,
-    danger: gameMode === "maze" ? "קירות סגולים" : gameMode === "battle" ? "אויבים רודפים" : "מכשולים סגולים",
-    mood: dna.dark || dna.space ? "ניאון חד, חשמלי וקולנועי" : dna.magic ? "קסום, עמוק ורך" : "נקי, שמח ומיידי",
-    speed: gameMode === "runner" ? 0.22 : gameMode === "maze" ? 0.095 : gameMode === "battle" ? 0.135 : 0.12,
+    mood,
+    goal: "גרור את האצבע, אסוף אנרגיה ירוקה, ואל תפגע בקוביות הסגולות",
+    speed: isFast ? 0.118 : 0.094,
     colors: {
-      background: dna.dark || dna.space ? "#05060a" : "#08111c",
+      background: isSpace || isNeon ? "#04070d" : "#07111c",
+      floor: isSpace || isNeon ? "#09111f" : "#111827",
       player: "#22ff99",
-      danger: dna.dark || gameMode === "battle" ? "#7c3cff" : "#5b21b6",
-      goal: "#ffffff",
-      floor: dna.dark || dna.space ? "#0b1220" : "#111827",
-      accent: dna.magic ? "#a7f3d0" : "#22ff99"
+      shard: isMagic ? "#a7f3d0" : "#22ff99",
+      danger: "#7c3cff",
+      portal: "#ffffff",
+      rail: isMagic ? "#a7f3d0" : "#22ff99"
     },
-    counts: {
-      shards: gameMode === "runner" ? 14 : gameMode === "maze" ? 7 : gameMode === "battle" ? 10 : 12,
-      blockers: gameMode === "runner" ? 10 : gameMode === "maze" ? 18 : gameMode === "battle" ? 11 : 6
+    tuning: {
+      targetScore: 24,
+      lives: 3,
+      spawnEveryMs: isFast ? 520 : 640,
+      obstacleChance: isFast ? 0.42 : 0.34
     },
     atoms: [
-      `מצב משחק: ${modeLabels[gameMode]}`,
+      `חוויה: מובייל אצבע אחת`,
       `עולם: ${world}`,
-      `מטרה: ${goal}`,
-      `סכנה: ${gameMode === "battle" ? "אויבים רודפים" : gameMode === "maze" ? "קירות ומעברים" : "מכשולים בתנועה"}`,
-      `קצב: ${gameMode === "runner" ? "מהיר" : gameMode === "maze" ? "מדויק" : gameMode === "battle" ? "לחוץ" : "הרפתקני"}`
+      `מטרה: איסוף אנרגיה והתחמקות`,
+      `שליטה: גרירה ישירה על המסך`,
+      `אווירה: ${mood}`
     ]
   };
 }
@@ -91,9 +77,9 @@ const server = http.createServer((req, res) => {
     req.on("end", () => {
       try {
         const data = JSON.parse(body || "{}");
-        sendJson(res, gameFromPrompt(data.prompt));
+        sendJson(res, mobileGameFromPrompt(data.prompt));
       } catch {
-        sendJson(res, gameFromPrompt(""));
+        sendJson(res, mobileGameFromPrompt(""));
       }
     });
     return;
