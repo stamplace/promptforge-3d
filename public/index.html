@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PromptForge 3D</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#05060a;color:white;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+    .app{min-height:100vh;display:grid;grid-template-rows:auto 1fr;background:radial-gradient(circle at top,#123 0,#05060a 52%)}
+    .top{padding:16px;display:grid;gap:10px}
+    h1{margin:0;font-size:28px;letter-spacing:-.04em}
+    .sub{color:#b8c7d9;font-size:14px}
+    textarea{width:100%;min-height:94px;border:1px solid #26475e;border-radius:20px;background:#071018;color:white;padding:14px;font-size:16px;outline:none}
+    button{border:0;border-radius:18px;padding:14px 18px;font-weight:900;background:#22ff99;color:#03100a;font-size:16px}
+    #stage{position:relative;min-height:52vh;border-top:1px solid #183247;overflow:hidden}
+    canvas{width:100%;height:100%;display:block}
+    .hud{position:absolute;inset:12px;pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+    .badge{background:rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:8px 12px;font-size:13px;backdrop-filter:blur(8px)}
+    .dna{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px;font-size:13px;color:#dce8f4}
+    .controls{position:absolute;bottom:16px;left:16px;right:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .controls button{pointer-events:auto;background:rgba(255,255,255,.13);color:white;backdrop-filter:blur(10px)}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="top">
+      <h1>PromptForge 3D</h1>
+      <div class="sub">כתוב משחק. שחק בו עכשיו.</div>
+      <textarea id="prompt">משחק חלל מהיר עם קובייה ירוקה שאוספת אנרגיה ובורחת ממכשולים סגולים בניאון</textarea>
+      <button id="forge">פתח את המשחק שלי</button>
+      <div id="dna" class="dna">המילים שלך יהפכו לעולם משחק חי.</div>
+    </section>
+
+    <section id="stage">
+      <div class="hud">
+        <div class="badge" id="score">0 / 0</div>
+        <div class="badge" id="title">Ready</div>
+      </div>
+      <div class="controls">
+        <button id="left">◀</button>
+        <button id="up">▲</button>
+        <button id="right">▶</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>

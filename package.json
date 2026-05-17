@@ -1,0 +1,11 @@
+{
+  "name": "promptforge-3d",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js",
+    "verify": "npm run check"
+  }
+}
