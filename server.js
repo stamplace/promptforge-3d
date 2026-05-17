@@ -23,49 +23,63 @@ function gameFromPrompt(prompt) {
   const dna = {
     space: hasAny(p, ["space", "planet", "star", "galaxy", "חלל", "כוכב", "גלקס", "ירח"]),
     fast: hasAny(p, ["fast", "runner", "race", "speed", "מהיר", "רץ", "מירוץ", "טיל"]),
-    magic: hasAny(p, ["magic", "dragon", "castle", "forest", "קסם", "דרקון", "יער", "טירה"]),
+    magic: hasAny(p, ["magic", "dragon", "castle", "forest", "treasure", "קסם", "דרקון", "יער", "טירה", "אוצר"]),
     dark: hasAny(p, ["dark", "night", "neon", "shadow", "לילה", "ניאון", "צל", "סגול"]),
     maze: hasAny(p, ["maze", "walls", "מבוך", "קירות", "מסדרון"]),
-    battle: hasAny(p, ["battle", "fight", "enemy", "war", "קרב", "אויב", "מלחמה", "יריות"])
+    battle: hasAny(p, ["battle", "fight", "enemy", "war", "shoot", "קרב", "אויב", "מלחמה", "יריות"])
   };
 
-  const genre = dna.maze ? "מבוך חי" : dna.battle ? "ארנת קרב" : dna.fast ? "ראנר מהיר" : "איסוף והרפתקה";
-  const world = dna.space ? "זירת חלל ניאונית" : dna.magic ? "יער קסום מרחף" : dna.dark ? "ארנת לילה חשמלית" : "עולם צעצוע נקי";
-  const player = dna.fast ? "שחקן ירוק מהיר" : dna.battle ? "גיבור ירוק בזירה" : "גיבור ירוק ממוקד";
-  const danger = dna.battle ? "אויבים סגולים זזים" : dna.maze ? "קירות ומכשולים סגולים" : "מכשולים סגולים";
-  const goal = dna.battle ? "אסוף אנרגיה, התחמק מאויבים, והפעל את השער" : "אסוף את כל האנרגיות והגע לשער";
-  const mood = dna.dark || dna.space ? "ניאון חד, חשמלי וקולנועי" : dna.magic ? "קסום, עמוק ורך" : "נקי, שמח ומיידי";
+  const gameMode = dna.maze ? "maze" : dna.battle ? "battle" : dna.fast || dna.space ? "runner" : "adventure";
+
+  const modeLabels = {
+    runner: "ראנר חלל",
+    maze: "מבוך שערים",
+    battle: "ארנת קרב",
+    adventure: "הרפתקת איסוף"
+  };
+
+  const world =
+    gameMode === "runner" ? "מסלול חלל מהיר" :
+    gameMode === "maze" ? "מבוך חי עם שער לבן" :
+    gameMode === "battle" ? "ארנת אויבים ניאונית" :
+    dna.magic ? "יער קסום מרחף" :
+    "עולם משחק נקי";
+
+  const goal =
+    gameMode === "runner" ? "רוץ קדימה, אסוף אנרגיה, ושרוד עד השער" :
+    gameMode === "maze" ? "מצא דרך בין הקירות, אסוף מפתחות, והגע לשער" :
+    gameMode === "battle" ? "התחמק מהאויבים, אסוף אנרגיה, והפעל את השער" :
+    "אסוף אוצרות והגע אל הפורטל";
 
   return {
     title: "המשחק שלך נפתח",
     prompt: text,
-    genre,
+    gameMode,
+    genre: modeLabels[gameMode],
     world,
-    player,
+    player: gameMode === "runner" ? "שחקן מהיר ירוק" : "גיבור ירוק",
     goal,
-    danger,
-    mood,
-    speed: dna.fast ? 0.2 : dna.maze ? 0.095 : 0.125,
-    camera: dna.fast ? "runner" : dna.maze ? "maze" : "arena",
+    danger: gameMode === "maze" ? "קירות סגולים" : gameMode === "battle" ? "אויבים רודפים" : "מכשולים סגולים",
+    mood: dna.dark || dna.space ? "ניאון חד, חשמלי וקולנועי" : dna.magic ? "קסום, עמוק ורך" : "נקי, שמח ומיידי",
+    speed: gameMode === "runner" ? 0.22 : gameMode === "maze" ? 0.095 : gameMode === "battle" ? 0.135 : 0.12,
     colors: {
-      background: dna.dark || dna.space ? "#05060a" : "#f8fafc",
+      background: dna.dark || dna.space ? "#05060a" : "#08111c",
       player: "#22ff99",
-      danger: dna.dark ? "#7c3cff" : "#5b21b6",
+      danger: dna.dark || gameMode === "battle" ? "#7c3cff" : "#5b21b6",
       goal: "#ffffff",
-      floor: dna.dark || dna.space ? "#0b1220" : "#e5e7eb",
+      floor: dna.dark || dna.space ? "#0b1220" : "#111827",
       accent: dna.magic ? "#a7f3d0" : "#22ff99"
     },
     counts: {
-      shards: dna.magic ? 12 : dna.fast ? 10 : 8,
-      blockers: dna.battle ? 12 : dna.maze ? 14 : dna.dark ? 9 : 6
+      shards: gameMode === "runner" ? 14 : gameMode === "maze" ? 7 : gameMode === "battle" ? 10 : 12,
+      blockers: gameMode === "runner" ? 10 : gameMode === "maze" ? 18 : gameMode === "battle" ? 11 : 6
     },
     atoms: [
-      `סוג: ${genre}`,
+      `מצב משחק: ${modeLabels[gameMode]}`,
       `עולם: ${world}`,
-      `שחקן: ${player}`,
       `מטרה: ${goal}`,
-      `סכנה: ${danger}`,
-      `אווירה: ${mood}`
+      `סכנה: ${gameMode === "battle" ? "אויבים רודפים" : gameMode === "maze" ? "קירות ומעברים" : "מכשולים בתנועה"}`,
+      `קצב: ${gameMode === "runner" ? "מהיר" : gameMode === "maze" ? "מדויק" : gameMode === "battle" ? "לחוץ" : "הרפתקני"}`
     ]
   };
 }
